@@ -1,0 +1,33 @@
+
+list_builds() {
+    local OPTIND options
+    local quantity=1000
+    local version=""
+    ga_url="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+    nightly_url="https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/"
+    local url="${ga_url}"
+
+    while getopts ":nq:v:u:" options
+    do
+        case "${options}" in
+            q)  # Quantity to return
+                quantity=${OPTARG}
+                ;;
+            v)  # Version to return
+                version="${OPTARG}"
+                ;;
+            u)  # URL to search, works instead of GA or Nightly urls
+                url="${OPTARG}"
+                ;;
+            n)  # Check nightly builds instead of GA builds.
+                url="${nightly_url}"
+                ;;
+        esac
+    done
+
+    curl ${url} |
+          sed -n 's#^.*<a href="\(.*\)/">.*#\1#p' \
+        | grep "^${version}" \
+        | sort --version-sort --reverse \
+        | tail -${quantity} 
+}

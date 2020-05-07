@@ -1,0 +1,39 @@
+
+check_nightly_status() {
+    # Takes optional arguments followed by the directory name of the bits to check
+    # i.e. check_nightly_status [-u url] [-v version] bits
+    #
+    local OPTIND options
+    local version url bits
+
+    while getopts ":u:v:" options
+    do
+        case "${options}" in
+            u)  # Set an alternate url to check for pass/fail
+                nightly_ci_url="${OPTARG}"
+                ;;
+            v)  # Set an alternate url to check for pass/fail
+                # Can include ::version:: and ::bits:: for substitution
+                version="${OPTARG}"
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+
+    bits=$1
+    : ${version:=$( echo "${bits}" | sed 's/\(.nightly\).*/\1/' )}
+
+    : ${nightly_ci_url:=https://openshift-release.svc.ci.openshift.org/releasestream/::version::/release/::bits::}
+
+    url=$( echo ${nightly_ci_url} | sed -e "s/::version::/${version}/" -e "s/::bits::/${bits}/" )
+
+    echo "---------------------------------"
+    echo ${nightly_ci_url}
+    echo ${url}
+
+    curl -sS ${url} \
+        | sed -n 's/.*>\(metal\) \(Failed\|Succeeded\)<.*>\(metal-serial\) \(Failed\|Succeeded\)<.*/\1 \2\n\3 \4/p'
+}
+
