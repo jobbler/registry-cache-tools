@@ -10,10 +10,11 @@ check_nightly_status() {
     do
         case "${options}" in
             u)  # Set an alternate url to check for pass/fail
+                # Can include ::version:: and ::bits:: for substitution
                 nightly_ci_url="${OPTARG}"
                 ;;
-            v)  # Set an alternate url to check for pass/fail
-                # Can include ::version:: and ::bits:: for substitution
+            v)  # Set an alternate version to use when substituting ::version::
+                # in url
                 version="${OPTARG}"
                 ;;
         esac
@@ -25,7 +26,7 @@ check_nightly_status() {
     bits=$1
     : ${version:=$( echo "${bits}" | sed 's/\(.nightly\).*/\1/' )}
 
-    : ${nightly_ci_url:=https://openshift-release.svc.ci.openshift.org/releasestream/::version::/release/::bits::}
+#    : ${nightly_ci_url:=https://openshift-release.svc.ci.openshift.org/releasestream/::version::/release/::bits::}
 
     url=$( echo ${nightly_ci_url} | sed -e "s/::version::/${version}/" -e "s/::bits::/${bits}/" )
 

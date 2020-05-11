@@ -3,8 +3,6 @@ list_builds() {
     local OPTIND options
     local quantity=1000
     local version=""
-    ga_url="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
-    nightly_url="https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/"
     local url="${ga_url}"
 
     while getopts ":nq:v:u:" options
@@ -12,9 +10,6 @@ list_builds() {
         case "${options}" in
             q)  # Quantity to return
                 quantity=${OPTARG}
-                ;;
-            v)  # Version to return
-                version="${OPTARG}"
                 ;;
             u)  # URL to search, works instead of GA or Nightly urls
                 url="${OPTARG}"
@@ -25,9 +20,14 @@ list_builds() {
         esac
     done
 
-    curl ${url} |
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+    curl -sS ${url} |
           sed -n 's#^.*<a href="\(.*\)/">.*#\1#p' \
-        | grep "^${version}" \
+        | grep "^${bits}" \
         | sort --version-sort --reverse \
         | tail -${quantity} 
 }
+

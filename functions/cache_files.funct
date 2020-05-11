@@ -1,0 +1,96 @@
+
+cache_files() {
+
+    local OPTIND options
+    local bits url release commit_id cw
+    local rhcos_uri rhcos_qemu_uri rhcos_osp_uri 
+
+    while getopts ":d:o:s" options
+    do
+        case "${options}" in
+            d)  # Set the root web directory to place the files in
+                www_dir="${OPTARG}"
+                ;;
+            o)  # Set the owner of the root web directory and files
+                owner="${OPTARG}"
+                ;;
+            s)  # Run Sudo when making directory
+                issudo=true
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    : ${www_dir:=/opt/cache}
+    : ${owner:=$USER}
+    bits=$1
+
+    [[ -n ${bits+isset} ]] \
+    && {
+
+        [[ $bits =~ nightly ]] \
+        && url=$nightly_url \
+        || url=$ga_url
+
+        [[ -d ${www_dir}/${bits} ]] && {
+        echo rm -rf ${www_dir}/${bits}
+        }
+
+        [[ -n ${issudo+isset} ]] \
+        && {
+            sudo mkdir -p ${www_dir}/${bits}
+            sudo chown --recursive ${owner}.${owner} ${www_dir}
+        } || {
+            mkdir -p ${www_dir}/${bits}
+            chown --recursive ${owner}.${owner} ${www_dir}
+        }
+
+        wget -O ${www_dir}/${bits}/release.txt ${url}/${bits}/release.txt
+
+        release=`cat ${www_dir}/${bits}/release.txt | grep Name | awk {'print $2'}`
+        release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${www_dir}/${bits}/release.txt )
+
+        wget -O ${www_dir}/${bits}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
+
+        cw=$( pwd )
+        cd ${www_dir}/${bits}
+        tar xf openshift-client-linux-${release}.tar.gz oc
+
+        mirror_repo -c ${www_dir}/${bits}/oc -p ${pullsecret} -u ${release_image} -l ${local_repo} -r ${local_registry} ${release}
+
+        ${www_dir}/${bits}/oc adm release extract \
+            --registry-config "${pullsecret}" \
+            --command="${installer}" \
+            --to ${www_dir}/${bits} \
+            ${local_registry}/${local_repo}:${release}
+
+        commit_id=$( ${www_dir}/${bits}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
+        url=$( echo ${installer_url} | sed -e "s/::commitid::/${commit_id}/" )
+        wget -O ${www_dir}/${bits}/rhcos.json ${url}
+
+
+        rhcos_qemu_uri=$( jq --raw-output .images.qemu.path ${www_dir}/${bits}/rhcos.json )
+        rhcos_osp_uri=$( jq --raw-output .images.openstack.path ${www_dir}/${bits}/rhcos.json )
+        rhcos_uri=$( jq --raw-output .baseURI ${www_dir}/${bits}/rhcos.json )
+
+        [[ ! -e ${www_dir}/${rhcos_qemu_uri} ]] \
+        && {
+            wget -O ${www_dir}/${rhcos_qemu_uri} ${rhcos_uri}/${rhcos_qemu_uri} \
+                && echo ${www_dir}/${rhcos_qemu_uri}
+        }
+
+        [[ ! -e ${www_dir}/${rhcos_osp_uri} ]] \
+        && {
+            wget -O ${www_dir}/${rhcos_osp_uri} ${rhcos_uri}/${rhcos_osp_uri} \
+                && echo ${www_dir}/${rhcos_osp_uri}
+        }
+
+        [[ -n ${issudo+isset} ]] \
+        && {
+            sudo chown --recursive ${owner}.${owner} ${www_dir}
+        } || {
+            chown --recursive ${owner}.${owner} ${www_dir}
+        }
+    }
+}
