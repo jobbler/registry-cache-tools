@@ -1,0 +1,37 @@
+
+
+## Notes
+#   Lines beginning with either a '#' or a ';' are treated as comments and are
+#       not parsed
+#   Dates in this file must be in the format 'YYYY-MM-DD'.
+#       This is the same as the output of the date commands '+%Y-%m-%d'.
+#
+#   Fields of the file are explained below:
+#   Version     :   For specific versions, specify the entire version number.
+#                       i.e. 4.3.18
+#                   To pull nightly builds, append '-nightly' to the version.
+#                       i.e. 4.6.3-nightly
+#                   To pull the most recent bits, prefix the major version with
+#                       the word 'recent-'.
+#                       i.e. recent-4.4, recent-4.6-nightly
+#   Added       :   The date the release was added to the list.
+#   Expires     :   The date the release expires from this list.
+#                       The word "never" causes the release to never expire.
+#                       The word "expired" causes a release to expire before its time.
+#   Requestor   :   Who requested this release, must be a unique and
+#                       easy way to identify the requester. It cannot contain spaces.
+#                       i.e. name, krb login, email.
+#   Comments    :   Self explanatory. This is the only field that is optional.
+#
+#
+
+
+# Version                             Added       Expires     Requestor   Comments
+
+latest-4.2                          2020-01-23  2020-07-17  joherr      versions beginning latest are handled in a special manner
+
+4.3.18                              2020-01-23  2020-05-17  joherr
+4.5.0-0.nightly-2020-06-03-105031   2020-01-23  2020-07-17  joherr      nightly build must include "nightly" in the name.
+latest-4.4                          2020-01-23  2020-07-17  joherr      versions beginning latest are handled in a special manner
+recent-4.4                          2020-06-23  never       joherr      download the most recent bits
+recent-4.6-nightly                  2020-06-23  never       joherr      download the most recent nightly bits

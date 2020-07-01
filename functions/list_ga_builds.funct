@@ -1,0 +1,53 @@
+
+list_ga_builds() {
+    # Usage: list_builds [-q #] bits_version
+    # Options: [-q #]   - Number of results to return.
+
+    # Returns: list of bit versions
+
+
+    local url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+
+    local OPTIND options
+    local bits dout
+    local quantity=1000
+
+    ## Parse options
+    while getopts ":q:" options
+    do
+        case "${options}" in
+            q)  # Number of items to return. Default: 1000
+                quantity=${OPTARG}
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+    ## Main
+    dout=( $( curl -L -sS ${url} |
+          sed -n 's#^.*<a href="\(.*\)/">.*#\1#p' \
+        | grep "^${bits}" \
+        | sort --version-sort --reverse \
+        | head -${quantity} 
+        ) )
+
+    for line in ${dout[@]}
+    do
+        printf "%s\n" ${line}
+    done
+
+[[ -n ${LOGFILE:+isset} ]] \
+&& {
+cat <<EOF >> ${LOGFILE}
+
+---------------------------------------
+Function:            ${FUNCNAME[0]}
+${dout[@]}
+
+EOF
+
+}
+

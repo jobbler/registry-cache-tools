@@ -1,0 +1,55 @@
+parse_release_file() {
+    # Usage: parse_release_file file_name
+    # Returns: list of versions in file
+
+    local file=$1
+    local now_epoch=$( date '+%s' )
+    local version added expires requestor comment
+
+    [[ ! -e ${file} ]] \
+        && {
+            printf "Must specify file to parse"
+            exit
+        }
+
+
+    while read -r version added expires requestor comment
+    do
+        expires_epoch=$( date --date="${expires}" '+%s' )
+
+        [[ ${now_epoch} -le ${expires_epoch} ]] \
+        && {
+            printf "%s\n" ${version}
+        }
+
+#        echo "------------------------"
+#        echo "--: $version"
+#        echo "--: $added"
+#        echo "--: $expires"
+#        echo "--: $requestor"
+#        echo "--: $comment"
+    done < <( sed -E '/^#|^;|^\s*$/d' ${file})
+
+
+
+}
+
+
+
+## 
+## 
+## date --date='2020-06-22' '+%s'
+## 1592802000
+## 
+## date --date='@1592802000' '+%Y-%m-%d'
+## 2020-06-22
+## 
+## 
+## Version                             Added       Expires     Requestor   Comments
+## 
+## latest-4.3                          2020-01-23  2020-05-17  joherr      versions beginning latest are handled in a special manner
+## 
+## 4.3.18                              2020-01-23  2020-05-17  joherr
+## 4.5.0-0.nightly-2020-06-03-105031   2020-01-23  2020-05-17  joherr      nightly build must include "nightly" in the name.
+## 
+## 

@@ -1,0 +1,24 @@
+wipe_registry() {
+    # Usage: wipe_registry dir
+    # Argument: dir is the directory that contains the repository data directory.
+    # Returns: nothing
+
+    usage() {
+        printf "%-7s %s\n" "Usage:" "wipe_registry directory"
+        printf "%-7s %s\n" "Where:" "directory is the directory that contains the"
+        printf "%-7s %s\n" "" "repository data directory."
+
+        exit
+    }
+
+    local reg_dir=$1
+
+    [[ -z ${reg_dir:+isset} ]] && usage
+
+    [[ ! -d ${reg_dir} ]] && usage
+    
+    # Remove the registry data directory
+    #
+    rm -vrf ${reg_dir}/data/docker
+}
+

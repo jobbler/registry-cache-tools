@@ -1,0 +1,28 @@
+link_latest_bits() {
+
+    local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+    local nightly_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/
+
+    local url bits bit_release
+
+    bits="latest-$( echo $1 | sed 's/latest-//' )"
+
+    [[ $bits =~ nightly ]] \
+        && url=${nightly_url} \
+        || url=${ga_url}
+
+
+    ## Main
+    [[ -n ${bits+isset} ]] \
+        && {
+           bit_release=$( wget --quiet -O - ${url}/${bits}/release.txt | grep Name | awk {'print $2'} )
+
+            [[ -d ${cache_dir}/${bit_release} ]] \
+                && {
+                    rm -rf ${cache_dir}/${bits}
+                    ln -s ${cache_dir}/${bit_release} ${cache_dir}/${bits}
+                } || {
+                    printf "${bit_release}"
+                }
+        }
+}

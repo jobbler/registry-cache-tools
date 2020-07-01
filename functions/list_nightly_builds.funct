@@ -1,0 +1,68 @@
+
+list_nightly_builds() {
+    # Usage: list_builds [-n|-u url] [-q #] bits_version
+    # Options: [-q #]   - Number of results to return.
+
+    # Returns: list of bit versions
+
+    usage() {
+    print usage
+    }
+
+    local url=https://openshift-release.apps.ci.l2s4.p1.openshiftapps.com/
+
+    local OPTIND options
+    local bits build
+    local quantity=1000
+    local -a nightly
+    local -a rarray
+
+    ## Parse options
+    while getopts ":q:" options
+    do
+        case "${options}" in
+            q)  # Number of items to return. Default: 1000
+                quantity=${OPTARG}
+                ;;
+            *)  usage
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+    ## Main
+    #
+
+    nightly=( $( curl -L -sS ${url} \
+        | sed -n 's#^.*nightly/release/\(.*\)">.*#\1#p' \
+        | grep "^${bits}" \
+        | head -${quantity}
+
+
+#        | grep releasestream \
+#        | grep nightly \
+#        | sed 's/^.*releasestream\///' \
+#        | sed 's/">.*//' \
+#        | grep "^${bits}" \
+#        | head -${quantity}
+    ) )
+
+    for build in ${nightly[@]}
+    do
+        check_in_array "${build}" "${rarray[@]}"
+        in_array=$?
+
+        [[ ${in_array} -ne 0 ]] && rarray+=( ${build} )
+    done
+
+    for build in ${rarray[@]}
+    do
+        printf "%s\n" ${build}
+    done
+
+
+}
+

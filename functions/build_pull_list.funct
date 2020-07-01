@@ -1,0 +1,110 @@
+build_pull_list() {
+    # Usage: build_pull_list [-g ga_bits] [-n nightly_bits] [-m max_ga] [-x max_nightly] [-c max_check] release_file
+    # Option: -g ga_bits        The ga bits to check. i.e. "4.3 4.4"
+    # Option: -n nightly_bits   The nightly bits to check. i.e. "4.3 4.4"
+    # Option: -m max_ga         The maximum number of ga bits for each version
+    #                           to add to the list.
+    # Option: -x max_nightly    The maximum number of nightly bots for each version
+    #                           to add to the list.
+    # Option: -c max_check      The maximum number of nightly bits to check for
+    #                           metal passes to try and match for max_nightly.
+    # Option: release file      contains a list of the bits to pull.
+
+    local -a build_pull
+    local -a tarray
+    
+    local build_ga_max build_nightly_max build_nightly_max_check
+    local ga_versions nightly_versions
+    
+    local nv tcount build ttext gav v in_array rfile ignore_release_file
+    
+    local OPTIND options
+    
+    ## Parse options
+    while getopts ":g:n:m:x:c:" options
+    do
+        case "${options}" in
+            g) # GA bits to pull
+               ga_versions="${OPTARG}"
+               ;;
+            n) # Nightly bits to pull
+               nightly_versions="${OPTARG}"
+               ;;
+            m) # Maximum number of GA bits to pull
+               build_ga_max="${OPTARG}"
+               ;;
+            x) # Maximum number of nightly bits to pull
+               build_nightly_max="${OPTARG}"
+               ;;
+            c) # Maximum number of nighlty bits to check to get maximum builds.
+               build_nightly_max_check="${OPTARG}"
+               ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    rfile=$1
+    
+    : ${build_ga_max:=4}
+    : ${build_nightly_max:=4}
+    : ${build_nightly_max_check:=20}
+    : ${ga_versions:=}
+    : ${nightly_versions:=}
+    
+    
+    ## Read the release file
+    #
+    [[ -n ${rfile:+isset} ]] \
+    && {
+        build_pull+=( $( parse_release_file ${rfile} | sort -u ) )
+    }
+    
+    ## Get list of GA builds to pull
+    #
+    for gav in ${ga_versions}
+    do
+        tarray=( $( list_ga_builds -q ${build_ga_max} ${gav} | sort -u ) )
+    
+        for v in "${tarray[@]}"
+        do
+            check_in_array "${v}" "${build_pull[@]}"
+            in_array=$?
+    
+            [[ ${in_array} -ne 0 ]] && build_pull+=($v)
+        done
+    done
+    
+    
+    
+    ## Get list of nightly builds to pull
+    #
+    for nv in ${nightly_versions}
+    do
+        nbuilds=$( list_nightly_builds -q ${build_nightly_max_check} ${nv} )
+    
+        tcount=0
+        for build in $nbuilds
+        do
+            check_in_array "${build}" "${build_pull[@]}"
+            in_array=$?
+    
+            [[ ${in_array} -eq 0 ]] && (( tcount++ ))
+    
+            [[ ${in_array} -ne 0 ]] && [[ $tcount -lt $build_nightly_max ]] && {
+                [[ $( check_nightly_status ${build} ) =~ Failed ]] \
+                || {
+                    build_pull+=( ${build} )
+                    (( tcount++ ))
+                }
+            }
+        done
+    done
+
+    for bits in "${build_pull[@]}"
+    do
+        printf "%s\n" ${bits}
+    done
+}
+    
+    

@@ -1,0 +1,21 @@
+check_in_array() {
+    # Usage: check_in_array "string" "array"
+    # Options: string is a quoted element to search for. This must be an exact match.
+    # Options: array is a quoted array to search. i.e. "${names[@]}"
+    # Return: 0 for pass, 1 for fail
+
+    local pattern="$1"
+    shift
+    local RC=1
+
+    for item
+    do
+        [[ $item == $pattern ]] \
+        && {
+            RC=0
+            break
+        }
+    done
+
+    return $RC
+}

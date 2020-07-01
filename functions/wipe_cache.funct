@@ -1,0 +1,31 @@
+wipe_cache() {
+    # Usage: wipe_cache dir
+    # Argument: dir is the directory that contains the release directories
+    # and rhcos images.
+    # Returns: nothing
+
+    usage() {
+        printf "%-7s %s\n" "Usage:" "wipe_cache directory"
+        printf "%-7s %s\n" "Where:" "directory is the directory that contains the"
+        printf "%-7s %s\n" "" "release directories and rhcos images."
+
+        exit
+    }
+
+    local cache_dir=$1
+
+    [[ -z ${cache_dir:+isset} ]] && usage
+
+    [[ ! -d ${cache_dir} ]] && usage
+    
+
+    # Remove all directories under cache_dir
+    #
+
+    for dir in $( ls -d ${cache_dir}/*/ )
+    do
+        [[ -d ${dir} ]] && rm -vrf ${dir}
+        echo ":$dir:"
+    done
+}
+

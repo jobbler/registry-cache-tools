@@ -1,0 +1,65 @@
+clean_rhcos() {
+    # Usage: clean_rhcos dir
+    # Argument: dir is the directory the bits are stored.
+
+    fname="${FUNCNAME[0]}"
+
+    usage() {
+        printf "%-7s %s %s\n" "Usage:" "${fname}" "dir"
+        printf "%-7s %s    %s\n" "Where:" "dir" "is the directory containing the RHCOS images and bits."
+        exit
+    }
+
+    local cache_dir=$1
+    local dir qimage oimage
+    local dout
+    local -A images
+
+    [[ -z ${cache_dir:+isset} ]] && usage
+
+
+    ## Build list of referenced image names
+    #
+    for dir in $( ls -d ${cache_dir}/*/ )
+    do
+        [[ -e ${dir}/rhcos.json ]] \
+        && {
+            qimage=$( jq --raw-output .images.qemu.path ${dir}/rhcos.json )
+            oimage=$( jq --raw-output .images.openstack.path ${dir}/rhcos.json )
+
+            images["$qimage"]=""
+            images["$oimage"]=""
+        }
+    done
+
+    ## Check if image is referenced. Remove it if not.
+    #
+    for file in $( ls -d ${cache_dir}/rhcos*.qcow2.gz )
+    do
+        referenced=1
+
+        for key in ${!images[@]}
+        do
+            [[ ${key} == ${file##*/} ]] && referenced=0
+        done
+
+        [[ ${referenced} -ne 0 ]] \
+        && {
+            rm -f $file
+            [[ -n ${LOGFILE:+isset} ]] && dout+=( "Removing: ${file}" )
+        } || {
+            [[ -n ${LOGFILE:+isset} ]] && dout+=( "Ignoring: ${file}" )
+        }
+    done
+
+[[ -n ${LOGFILE:+isset} ]] \
+&& {
+cat <<EOF >> ${LOGFILE}
+
+---------------------------------------
+Function:            ${FUNCNAME[0]}
+${dout[@]}
+
+EOF
+
+}

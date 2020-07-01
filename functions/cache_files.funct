@@ -1,49 +1,100 @@
 
 cache_files() {
+    # Usage: cache_files [-s] bits_version
+    # Options: [-s] - Run sudo when creating the web directory and setting permissions
+
+    # Requires: cache_www_dir, file_owner, file_group
+    #           installer, installer_json_url
+    #           local_repo, local_registry, pullsecret_file
+    #           ga_url, nightly_url
+    # Returns: nothing
+
+    local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+    local nightly_url=https://openshift-release-artifacts.svc.ci.openshift.org/
+#    local nightly_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/
 
     local OPTIND options
-    local bits url release commit_id cw
+    local www_dir url
+    local owner group
+    local cmd repo registry pullsecret
+    local json_url j_url
+    local release release_image commit_id
     local rhcos_uri rhcos_qemu_uri rhcos_osp_uri 
 
-    while getopts ":d:o:s" options
+    ## Parse options
+    while getopts ":sp:w:o:g:c:m:r:u:" options
     do
         case "${options}" in
-            d)  # Set the root web directory to place the files in
-                www_dir="${OPTARG}"
-                ;;
-            o)  # Set the owner of the root web directory and files
-                owner="${OPTARG}"
-                ;;
             s)  # Run Sudo when making directory
                 issudo=true
+                ;;
+            p)  # file that contains the pull secret
+                pullsecret=${OPTARG}
+                ;;
+            w)  # www directory to place the directory and files into
+                www_dir=${OPTARG}
+                ;;
+            o)  # owner for the directories and files that are created
+                owner=${OPTARG}
+                ;;
+            g)  # group for the directories and files that are created
+                # defaults to owner
+                group=${OPTARG}
+                ;;
+            c)  # command for the --command option to the oc command
+                #   to extract the installer
+                cmd=${OPTARG}
+                ;;
+            m)  # local mirrored registry and port
+                registry=${OPTARG}
+                ;;
+            r)  # repository on local mirrored registry to place images into
+                repo=${OPTARG}
+                ;;
+            u)  # alternate url for the rhcos.json file
+                json_url=${OPTARG}
                 ;;
         esac
     done
 
     shift $(($OPTIND - 1))
 
-    : ${www_dir:=/opt/cache}
-    : ${owner:=$USER}
     bits=$1
 
+    ## Set defaults
+    : ${pullsecret:=~/pull-secret.json}
+    : ${www_dir:=/opt/cache}
+    : ${owner:=$USER}
+    : ${group:=$owner}
+    : ${cmd:=openshift-baremetal-install}
+    : ${repo:=ocp}
+    : ${registry:=127.0.0.1:5000}
+    : ${json_url:=https://raw.githubusercontent.com/openshift/installer/::commitid::/data/data/rhcos.json}
+
+    [[ $bits =~ nightly ]] \
+        && url=${nightly_url} \
+        || url=${ga_url}
+
+
+
+    ## Main
     [[ -n ${bits+isset} ]] \
     && {
-
-        [[ $bits =~ nightly ]] \
-        && url=$nightly_url \
-        || url=$ga_url
-
         [[ -d ${www_dir}/${bits} ]] && {
-        echo rm -rf ${www_dir}/${bits}
+#            rm -rf ${www_dir}/${bits}
+            printf "Not pulling bits %s. Bit directory exists: %s\n" "${bits}" "${www_dir}/${bits}"
+            return 0
         }
 
         [[ -n ${issudo+isset} ]] \
         && {
             sudo mkdir -p ${www_dir}/${bits}
-            sudo chown --recursive ${owner}.${owner} ${www_dir}
+            sudo chown --recursive ${owner}.${group} ${www_dir}
+            sudo chmod --recursive 777 ${www_dir}
         } || {
             mkdir -p ${www_dir}/${bits}
-            chown --recursive ${owner}.${owner} ${www_dir}
+            chown --recursive ${owner}.${group} ${www_dir}
+            chmod --recursive 777 ${www_dir}
         }
 
         wget -O ${www_dir}/${bits}/release.txt ${url}/${bits}/release.txt
@@ -53,21 +104,20 @@ cache_files() {
 
         wget -O ${www_dir}/${bits}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
 
-        cw=$( pwd )
-        cd ${www_dir}/${bits}
-        tar xf openshift-client-linux-${release}.tar.gz oc
+        tar xf ${www_dir}/${bits}/openshift-client-linux-${release}.tar.gz \
+            --directory ${www_dir}/${bits} oc
 
-        mirror_repo -c ${www_dir}/${bits}/oc -p ${pullsecret} -u ${release_image} -l ${local_repo} -r ${local_registry} ${release}
+        mirror_repo -c ${www_dir}/${bits}/oc -p ${pullsecret} -u ${release_image} -l ${repo} -r ${registry} ${release}
 
         ${www_dir}/${bits}/oc adm release extract \
             --registry-config "${pullsecret}" \
-            --command="${installer}" \
+            --command="${cmd}" \
             --to ${www_dir}/${bits} \
-            ${local_registry}/${local_repo}:${release}
+            ${registry}/${repo}:${release}
 
         commit_id=$( ${www_dir}/${bits}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
-        url=$( echo ${installer_url} | sed -e "s/::commitid::/${commit_id}/" )
-        wget -O ${www_dir}/${bits}/rhcos.json ${url}
+        j_url=$( echo ${json_url} | sed -e "s/::commitid::/${commit_id}/" )
+        wget -O ${www_dir}/${bits}/rhcos.json ${j_url}
 
 
         rhcos_qemu_uri=$( jq --raw-output .images.qemu.path ${www_dir}/${bits}/rhcos.json )
@@ -88,9 +138,11 @@ cache_files() {
 
         [[ -n ${issudo+isset} ]] \
         && {
-            sudo chown --recursive ${owner}.${owner} ${www_dir}
+            sudo chown --recursive ${owner}.${group} ${www_dir}
+            sudo chmod --recursive 777 ${www_dir}
         } || {
-            chown --recursive ${owner}.${owner} ${www_dir}
+            chown --recursive ${owner}.${group} ${www_dir}
+            chmod --recursive 777 ${www_dir}
         }
     }
 }

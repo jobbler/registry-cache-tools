@@ -1,40 +1,65 @@
 
 check_nightly_status() {
-    # Takes optional arguments followed by the directory name of the bits to check
-    # i.e. check_nightly_status [-u url] [-v version] bits
-    #
-    local OPTIND options
-    local version url bits
+    # Usage: check_nightly_status [-u url] bits_version
+    # Options: -u url   Alternate url to use to check builds.
+    #                   Can contain ::version:: and ::bits:: that will be 
+    #                   replaced.
 
-    while getopts ":u:v:" options
-    do
-        case "${options}" in
-            u)  # Set an alternate url to check for pass/fail
-                # Can include ::version:: and ::bits:: for substitution
-                nightly_ci_url="${OPTARG}"
-                ;;
-            v)  # Set an alternate version to use when substituting ::version::
-                # in url
-                version="${OPTARG}"
-                ;;
-        esac
-    done
+    # Returns: Status of metal tests
+    #           Unable to find release tag 4.5.0-0.nightly-2020-06-05-214616, 
+    #           it may have been deleted
+    # or
+    #           metal Succeeded|Failed
+    #           metal-ipi Succeeded|Failed
+    #           metal-serial Succeeded|Failed
 
-    shift $(($OPTIND - 1))
+    usage() {
+        echo usage
+        exit
+    }
 
+    local version url bits status
+    local status_metal status_metal_ipi status_metal_serial
 
     bits=$1
-    : ${version:=$( echo "${bits}" | sed 's/\(.nightly\).*/\1/' )}
 
-#    : ${nightly_ci_url:=https://openshift-release.svc.ci.openshift.org/releasestream/::version::/release/::bits::}
 
-    url=$( echo ${nightly_ci_url} | sed -e "s/::version::/${version}/" -e "s/::bits::/${bits}/" )
+    ## Main
 
-    echo "---------------------------------"
-    echo ${nightly_ci_url}
-    echo ${url}
+    version="${bits%%nightly*}nightly"
 
-    curl -sS ${url} \
-        | sed -n 's/.*>\(metal\) \(Failed\|Succeeded\)<.*>\(metal-serial\) \(Failed\|Succeeded\)<.*/\1 \2\n\3 \4/p'
+    url=https://openshift-release.apps.ci.l2s4.p1.openshiftapps.com/releasestream/${version}/release/${bits}
+
+    status=$( curl -L -sS ${url} )
+
+    status_metal=$( echo "$status" | sed -n 's/.*>metal \(Failed\|Succeeded\)<.*/\1/p' )
+    status_metal_ipi=$( echo "$status" | sed -n 's/.*>metal-ipi \(Failed\|Succeeded\)<.*/\1/p' )
+    status_metal_serial=$( echo "$status" | sed -n 's/.*>metal-serial \(Failed\|Succeeded\)<.*/\1/p' )
+
+    [[ ( $status_metal =~ "Succeeded" ) && \
+       ( $status_metal_ipi =~ "Succeeded" ) && \
+       ( $status_metal_serial =~ "Succeeded" ) ]] \
+    && printf "Succeeded\n" \
+    || printf "Failed\n"
+
+## Print debug info if LOGFILE is set
+#
+[[ -n ${LOGFILE:+isset} ]] \
+&& {
+cat <<EOF >> ${LOG_FILE}
+
+---------------------------------------
+Function:            ${FUNCNAME[0]}
+version:             ${version}
+URL:                 ${url}
+Metal status:        ${status_metal}
+Metal-IPI status:    ${status_metal_ipi}
+Metal-Serial status: ${status_metal__serial}
+Status: ${status}
+End of function:     ${FUNCNAME[0]}
+
+EOF
+}
+
 }
 
