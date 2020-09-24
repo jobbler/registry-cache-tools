@@ -1,0 +1,109 @@
+
+fetch_upi_files() {
+    # Usage: cache_files [-s] bits_version
+    # Options: [-s] - Run sudo when creating the web directory and setting permissions
+
+    # Requires: cache_www_dir, file_owner, file_group
+    #           installer, installer_json_url
+    #           local_repo, local_registry, pullsecret_file
+    #           ga_url, nightly_url
+    # Returns: nothing
+
+    local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+    local nightly_url=https://openshift-release-artifacts.svc.ci.openshift.org/
+#    local nightly_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/
+
+    local OPTIND options
+    local dir url
+    local cmd repo registry pullsecret
+    local json_url j_url
+    local release release_image commit_id
+    local rhcos_uri rhcos_kernel_uri rhcos_initramfs_uri rhcos_metal_uri
+
+    ## Parse options
+    while getopts ":d:p:c:u:" options
+    do
+        case "${options}" in
+            d)  # www directory to place the directory and files into
+                dir=${OPTARG}
+                ;;
+            p)  # file that contains the pull secret
+                pullsecret=${OPTARG}
+                ;;
+            c)  # command for the --command option to the oc command
+                #   to extract the installer
+                cmd=${OPTARG}
+                ;;
+            u)  # alternate url for the rhcos.json file
+                json_url=${OPTARG}
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+    ## Set defaults
+    : ${pullsecret:=~/pull-secret.json}
+    : ${dir:=$(pwd)}
+    : ${cmd:=openshift-baremetal-install}
+    : ${json_url:=https://raw.githubusercontent.com/openshift/installer/::commitid::/data/data/rhcos.json}
+
+    [[ $bits =~ nightly ]] \
+        && url=${nightly_url} \
+        || url=${ga_url}
+
+
+
+    ## Main
+    [[ -n ${bits+isset} ]] \
+    && {
+        [[ -d ${dir}/${bits} ]] || mkdir -p ${dir}/${bits}
+
+        wget -O ${dir}/${bits}/release.txt ${url}/${bits}/release.txt
+
+        release=`cat ${dir}/${bits}/release.txt | grep Name | awk {'print $2'}`
+        release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${dir}/${bits}/release.txt )
+
+        wget -O ${dir}/${bits}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
+
+        tar xf ${dir}/${bits}/openshift-client-linux-${release}.tar.gz \
+            --directory ${dir}/${bits} oc
+
+        ${dir}/${bits}/oc adm release extract \
+            --registry-config "${pullsecret}" \
+            --command="${cmd}" \
+            --to ${dir}/${bits} \
+            ${registry}/${repo}:${release}
+
+        commit_id=$( ${dir}/${bits}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
+        j_url=$( echo ${json_url} | sed -e "s/::commitid::/${commit_id}/" )
+        wget -O ${dir}/${bits}/rhcos.json ${j_url}
+
+
+        rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/${bits}/rhcos.json )
+        rhcos_initramfs_uri=$( jq --raw-output .images.imitramfs.path ${dir}/${bits}/rhcos.json )
+        rhcos_metal_uri=$( jq --raw-output .images.metal.path ${dir}/${bits}/rhcos.json )
+        rhcos_uri=$( jq --raw-output .baseURI ${dir}/${bits}/rhcos.json )
+
+        [[ ! -e ${dir}/${rhcos_kernel_uri} ]] \
+        && {
+            wget -O ${dir}/${rhcos_kernel_uri} ${rhcos_uri}/${rhcos_kernel_uri} \
+                && echo ${dir}/${rhcos_kernel_uri}
+        }
+
+        [[ ! -e ${dir}/${rhcos_initramfs_uri} ]] \
+        && {
+            wget -O ${dir}/${rhcos_initramfs_uri} ${rhcos_uri}/${rhcos_initramfs_uri} \
+                && echo ${dir}/${rhcos_initramfs_uri}
+        }
+
+        [[ ! -e ${dir}/${rhcos_metal_uri} ]] \
+        && {
+            wget -O ${dir}/${rhcos_metal_uri} ${rhcos_uri}/${rhcos_metal_uri} \
+                && echo ${dir}/${rhcos_metal_uri}
+        }
+
+    }
+}
