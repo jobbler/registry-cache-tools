@@ -12,7 +12,7 @@ clean_rhcos() {
 
     local cache_dir=$1
     local dir qimage oimage
-    local dout
+    local -a dout
     local -A images
 
     [[ -z ${cache_dir:+isset} ]] && usage
@@ -61,5 +61,6 @@ Function:            ${FUNCNAME[0]}
 ${dout[@]}
 
 EOF
+}
 
 }

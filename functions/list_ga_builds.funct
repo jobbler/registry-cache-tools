@@ -9,8 +9,9 @@ list_ga_builds() {
     local url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
 
     local OPTIND options
-    local bits dout
+    local bits
     local quantity=1000
+    local -a dout
 
     ## Parse options
     while getopts ":q:" options
@@ -48,6 +49,7 @@ Function:            ${FUNCNAME[0]}
 ${dout[@]}
 
 EOF
+}
 
 }
 

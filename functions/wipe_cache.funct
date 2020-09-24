@@ -12,6 +12,8 @@ wipe_cache() {
         exit
     }
 
+    local dir
+    local -a rmout
     local cache_dir=$1
 
     [[ -z ${cache_dir:+isset} ]] && usage
@@ -24,8 +26,26 @@ wipe_cache() {
 
     for dir in $( ls -d ${cache_dir}/*/ )
     do
-        [[ -d ${dir} ]] && rm -vrf ${dir}
-        echo ":$dir:"
+        [[ -d ${dir} ]] \
+        && {
+            while read -r line
+            do
+                rmout+=( "$line" )
+            done < <( rm -vrf ${dir} )
     done
+
+
+[[ -n ${LOGFILE:+isset} ]] \
+&& {
+cat <<EOF >> ${LOGFILE}
+
+---------------------------------------
+Function:            ${FUNCNAME[0]}
+${rmout[@]}
+
+EOF
+
+}
+
 }
 

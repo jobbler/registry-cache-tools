@@ -63,6 +63,21 @@ list_nightly_builds() {
         printf "%s\n" ${build}
     done
 
+[[ -n ${LOGFILE:+isset} ]] \
+&& {
+cat <<EOF >> ${LOGFILE}
+
+---------------------------------------
+Function:            ${FUNCNAME[0]}
+Nightly Bits:
+${nightly[@]}
+
+Returned Bits:
+${rarray[@]}
+
+EOF
+
+}
 
 }
 
