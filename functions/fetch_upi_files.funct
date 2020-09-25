@@ -11,7 +11,6 @@ fetch_upi_files() {
 
     local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
     local nightly_url=https://openshift-release-artifacts.svc.ci.openshift.org/
-#    local nightly_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/
 
     local OPTIND options
     local dir url
@@ -60,6 +59,9 @@ fetch_upi_files() {
     [[ -n ${bits+isset} ]] \
     && {
         [[ -d ${dir}/${bits} ]] || mkdir -p ${dir}/${bits}
+
+        # Check if bits are there, if not wait fo rthem to be created
+        [[ $( wget -O ${dir}/${bits}/release.txt ${url}/${bits} | grep "Extracting tools" ) ]] && sleep 90
 
         wget -O ${dir}/${bits}/release.txt ${url}/${bits}/release.txt
 
