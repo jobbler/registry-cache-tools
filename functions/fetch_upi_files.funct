@@ -3,16 +3,20 @@ fetch_upi_files() {
     # Usage: cache_files [-s] bits_version
     # Options: [-d] - Directory to download files into
     # Options: [-p] - Pull secret file
+    # Description: This script requires the version of the bits to download.
+    # Description: For GA bits, this is the directory name at
+    # Description:   https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+    # Description: For CI bits, this is the 
+4.6.0-0.nightly-2020-09-24-015627
 
     # Returns: nothing
 
-    local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
-    local ci_url=https://openshift-release-artifacts.svc.ci.openshift.org/
-    local ci_reg=quay.io/openshift-release-dev/ocp-release-nightly
+    local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp
+    local dev_url=${ga_url}-dev-preview
 
     local OPTIND options
     local bits
-    local dir bitdir_exists url
+    local dir url
     local cmd pullsecret
     local json_url j_url
     local release release_image commit_id
@@ -42,7 +46,7 @@ fetch_upi_files() {
     : ${json_url:=https://raw.githubusercontent.com/openshift/installer/::commitid::/data/data/rhcos.json}
 
 
-    [[ $bits =~ nightly || $bits =~ ci ]] \
+    [[ $bits =~ nightly ]] \
     && url=${ci_url} \
     || url=${ga_url}
 
@@ -55,23 +59,11 @@ fetch_upi_files() {
     && {
         [[ -d ${dir} ]] || mkdir -p ${dir}
 
-        # Check if bits are there, if not wait for them to be created
-        bitdir_exists=$( curl -s ${url}/${bits} | grep "Extracting tools" )
-        [[ ${bitdir_exists} ]] \
-            && {
-                echo "Waiting for bits to extract on server"
-                sleep 90
-            }
-
         # Fetch the release.txt file so we can know which images to pull
         wget -O ${dir}/release.txt ${url}/${bits}/release.txt
 
         release=`cat ${dir}/release.txt | grep Name | awk {'print $2'}`
         release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${dir}/release.txt )
-
-        # If its nightly or ci bits, change the registry
-        [[ $bits =~ nightly || $bits =~ ci ]] \
-        && release_image="${release_image/*@/${ci_reg}@}"
 
         # Fetch and extract the oc command
         wget -O ${dir}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
