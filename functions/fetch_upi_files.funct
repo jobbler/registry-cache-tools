@@ -60,8 +60,13 @@ fetch_upi_files() {
     && {
         [[ -d ${dir}/${bits} ]] || mkdir -p ${dir}/${bits}
 
-        # Check if bits are there, if not wait fo rthem to be created
-        [[ $( wget -O ${dir}/${bits}/release.txt ${url}/${bits} | grep "Extracting tools" ) ]] && sleep 90
+        # Check if bits are there, if not wait for them to be created
+        dir_exists=$( curl -s ${url}/${bits} | grep "Extracting tools" )
+        [[ ${dir_exists} ]] \
+            && {
+                echo "Waiting for bits to extract on server"
+                sleep 90
+            }
 
         wget -O ${dir}/${bits}/release.txt ${url}/${bits}/release.txt
 
