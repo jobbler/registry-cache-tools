@@ -1,26 +1,25 @@
 
 fetch_upi_files() {
     # Usage: cache_files [-s] bits_version
-    # Options: [-s] - Run sudo when creating the web directory and setting permissions
+    # Options: [-d] - Directory to download files into
+    # Options: [-p] - Pull secret file
 
-    # Requires: cache_www_dir, file_owner, file_group
-    #           installer, installer_json_url
-    #           local_repo, local_registry, pullsecret_file
-    #           ga_url, nightly_url
     # Returns: nothing
 
     local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
-    local nightly_url=https://openshift-release-artifacts.svc.ci.openshift.org/
+    local ci_url=https://openshift-release-artifacts.svc.ci.openshift.org/
+    local ci_reg=quay.io/openshift-release-dev/ocp-release-nightly
 
     local OPTIND options
-    local dir url
-    local cmd repo registry pullsecret
+    local bits
+    local dir bitdir_exists url
+    local cmd pullsecret
     local json_url j_url
     local release release_image commit_id
     local rhcos_uri rhcos_kernel_uri rhcos_initramfs_uri rhcos_metal_uri
 
     ## Parse options
-    while getopts ":d:p:c:u:" options
+    while getopts ":d:p:" options
     do
         case "${options}" in
             d)  # www directory to place the directory and files into
@@ -28,13 +27,6 @@ fetch_upi_files() {
                 ;;
             p)  # file that contains the pull secret
                 pullsecret=${OPTARG}
-                ;;
-            c)  # command for the --command option to the oc command
-                #   to extract the installer
-                cmd=${OPTARG}
-                ;;
-            u)  # alternate url for the rhcos.json file
-                json_url=${OPTARG}
                 ;;
         esac
     done
@@ -49,63 +41,77 @@ fetch_upi_files() {
     : ${cmd:=openshift-baremetal-install}
     : ${json_url:=https://raw.githubusercontent.com/openshift/installer/::commitid::/data/data/rhcos.json}
 
-    [[ $bits =~ nightly ]] \
-        && url=${nightly_url} \
-        || url=${ga_url}
+
+    [[ $bits =~ nightly || $bits =~ ci ]] \
+    && url=${ci_url} \
+    || url=${ga_url}
+
+
 
 
 
     ## Main
     [[ -n ${bits+isset} ]] \
     && {
-        [[ -d ${dir}/${bits} ]] || mkdir -p ${dir}/${bits}
+        [[ -d ${dir} ]] || mkdir -p ${dir}
 
         # Check if bits are there, if not wait for them to be created
-        dir_exists=$( curl -s ${url}/${bits} | grep "Extracting tools" )
-        [[ ${dir_exists} ]] \
+        bitdir_exists=$( curl -s ${url}/${bits} | grep "Extracting tools" )
+        [[ ${bitdir_exists} ]] \
             && {
                 echo "Waiting for bits to extract on server"
                 sleep 90
             }
 
-        wget -O ${dir}/${bits}/release.txt ${url}/${bits}/release.txt
+        # Fetch the release.txt file so we can know which images to pull
+        wget -O ${dir}/release.txt ${url}/${bits}/release.txt
 
-        release=`cat ${dir}/${bits}/release.txt | grep Name | awk {'print $2'}`
-        release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${dir}/${bits}/release.txt )
+        release=`cat ${dir}/release.txt | grep Name | awk {'print $2'}`
+        release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${dir}/release.txt )
 
-        wget -O ${dir}/${bits}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
+        # If its nightly or ci bits, change the registry
+        [[ $bits =~ nightly || $bits =~ ci ]] \
+        && release_image="${release_image/*@/${ci_reg}@}"
 
-        tar xf ${dir}/${bits}/openshift-client-linux-${release}.tar.gz \
-            --directory ${dir}/${bits} oc
+        # Fetch and extract the oc command
+        wget -O ${dir}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
 
-        ${dir}/${bits}/oc adm release extract \
+        tar xf ${dir}/openshift-client-linux-${release}.tar.gz \
+            --directory ${dir} oc
+
+        # Extract the installer
+        ${dir}/oc adm release extract \
             --registry-config "${pullsecret}" \
             --command="${cmd}" \
-            --to ${dir}/${bits} \
-            ${registry}/${repo}:${release}
+            --to ${dir} \
+            ${release_image}
 
-        commit_id=$( ${dir}/${bits}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
+        # Fetch the rhcos json file so we know which rhcos images to fetch.
+        commit_id=$( ${dir}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
         j_url=$( echo ${json_url} | sed -e "s/::commitid::/${commit_id}/" )
-        wget -O ${dir}/${bits}/rhcos.json ${j_url}
+        wget -O ${dir}/rhcos.json ${j_url}
 
+        # Identify the URI for the images
+        rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/rhcos.json )
+        rhcos_initramfs_uri=$( jq --raw-output .images.imitramfs.path ${dir}/rhcos.json )
+        rhcos_metal_uri=$( jq --raw-output .images.metal.path ${dir}/rhcos.json )
+        rhcos_uri=$( jq --raw-output .baseURI ${dir}/rhcos.json )
 
-        rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/${bits}/rhcos.json )
-        rhcos_initramfs_uri=$( jq --raw-output .images.imitramfs.path ${dir}/${bits}/rhcos.json )
-        rhcos_metal_uri=$( jq --raw-output .images.metal.path ${dir}/${bits}/rhcos.json )
-        rhcos_uri=$( jq --raw-output .baseURI ${dir}/${bits}/rhcos.json )
-
+        # Fetch the kernel image
         [[ ! -e ${dir}/${rhcos_kernel_uri} ]] \
         && {
             wget -O ${dir}/${rhcos_kernel_uri} ${rhcos_uri}/${rhcos_kernel_uri} \
                 && echo ${dir}/${rhcos_kernel_uri}
         }
 
+        # Fetch the initramfs image
         [[ ! -e ${dir}/${rhcos_initramfs_uri} ]] \
         && {
             wget -O ${dir}/${rhcos_initramfs_uri} ${rhcos_uri}/${rhcos_initramfs_uri} \
                 && echo ${dir}/${rhcos_initramfs_uri}
         }
 
+        # Fetch the metal image
         [[ ! -e ${dir}/${rhcos_metal_uri} ]] \
         && {
             wget -O ${dir}/${rhcos_metal_uri} ${rhcos_uri}/${rhcos_metal_uri} \
