@@ -24,7 +24,7 @@ file_exists() {
             RC=1
         }
 
-        output "${filename}: ${state}
+        output "${filename}: ${state}"
     }
 
     [[ ${RC} -ne 0 && -n ${fail:+isset} ]] && exit ${RC}
@@ -62,7 +62,7 @@ download() {
     local src=$1
     local dest=$2
 
-    debug "$(wget -O ${dest} ${src} 2>&1$)"
+    debug "$( wget -O ${dest} ${src} 2>&1 )"
 
     fail=${fail} file_exists ${dest}
     RC=$?

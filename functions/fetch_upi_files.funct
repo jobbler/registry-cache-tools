@@ -1,8 +1,6 @@
 
 fetch_upi_files() {
-    # Usage: cache_files [-s] bits_version
-    # Options: [-d] - Directory to download files into
-    # Options: [-p] - Pull secret file
+    # Usage: cache_files bits_version
     # Description: This script requires the version of the bits to download.
     # Description: The bits are downloaded from:
     # Description:   https://mirror.openshift.com/pub/openshift-v4/clients/ocp*
@@ -12,28 +10,12 @@ fetch_upi_files() {
     local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp
     local dev_url=${ga_url}-dev-preview
 
-    local OPTIND options
     local bits
     local dir url
     local cmd pullsecret
     local json_url j_url
     local release release_image commit_id
     local rhcos_uri rhcos_kernel_uri rhcos_initramfs_uri rhcos_metal_uri
-
-    ## Parse options
-    while getopts ":d:p:" options
-    do
-        case "${options}" in
-            d)  # www directory to place the directory and files into
-                dir=${OPTARG}
-                ;;
-            p)  # file that contains the pull secret
-                pullsecret=${OPTARG}
-                ;;
-        esac
-    done
-
-    shift $(($OPTIND - 1))
 
     bits=$1
 
@@ -49,7 +31,8 @@ fetch_upi_files() {
     || url=${ga_url}
 
 
-
+    # Strip tailing slash from dir
+    dir=${dir%/}
 
 
     ## Main
@@ -58,18 +41,14 @@ fetch_upi_files() {
         [[ -d ${dir} ]] || mkdir -p ${dir}
 
         # Fetch the release.txt file so we can know which images to pull
-#        wget -O ${dir}/release.txt ${url}/${bits}/release.txt
         fail=true download \
             ${url}/${bits}/release.txt \
             ${dir}/release.txt
-
-exit
 
         release=`cat ${dir}/release.txt | grep Name | awk {'print $2'}`
         release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${dir}/release.txt )
 
         # Fetch and extract the oc command
-#        wget -O ${dir}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
         fail=true download \
             ${url}/${bits}/openshift-client-linux-${release}.tar.gz \
             ${dir}/openshift-client-linux-${release}.tar.gz
@@ -87,7 +66,6 @@ exit
         # Fetch the rhcos json file so we know which rhcos images to fetch.
         commit_id=$( ${dir}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
         j_url=$( echo ${json_url} | sed -e "s/::commitid::/${commit_id}/" )
-#        wget -O ${dir}/rhcos.json ${j_url}
         fail=true download ${j_url} ${dir}/rhcos.json
 
         # Identify the URI for the images
@@ -99,8 +77,6 @@ exit
         # Fetch the kernel image
         [[ ! -e ${dir}/${rhcos_kernel_uri} ]] \
         && {
-#            wget -O ${dir}/${rhcos_kernel_uri} ${rhcos_uri}/${rhcos_kernel_uri} \
-#                && echo ${dir}/${rhcos_kernel_uri}
             fail=true download \
                 ${rhcos_uri}/${rhcos_kernel_uri} \
                 ${dir}/${rhcos_kernel_uri}
@@ -109,8 +85,6 @@ exit
         # Fetch the initramfs image
         [[ ! -e ${dir}/${rhcos_initramfs_uri} ]] \
         && {
-#            wget -O ${dir}/${rhcos_initramfs_uri} ${rhcos_uri}/${rhcos_initramfs_uri} \
-#                && echo ${dir}/${rhcos_initramfs_uri}
             fail=true download \
                 ${rhcos_uri}/${rhcos_initramfs_uri} \
                 ${dir}/${rhcos_initramfs_uri}
@@ -119,8 +93,6 @@ exit
         # Fetch the metal image
         [[ ! -e ${dir}/${rhcos_metal_uri} ]] \
         && {
-#            wget -O ${dir}/${rhcos_metal_uri} ${rhcos_uri}/${rhcos_metal_uri} \
-#                && echo ${dir}/${rhcos_metal_uri}
             fail=true download \
                 ${rhcos_uri}/${rhcos_metal_uri} \
                 ${dir}/${rhcos_metal_uri}
