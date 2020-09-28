@@ -23,7 +23,13 @@ declare -A VAR
 
     while read -r key value
     do
-        VAR[${key//:}]=$value
+        # Since the variables are read in using a script and not sourced
+        # in, tilde and environment expansion fo not occur.
+        # ${value/#\~/$HOME} will do the tilde expansion if its at
+        # the beginning of the string.
+        # envsubst will provide the environment substitution.
+        VAR[${key//:}]=$( echo ${value/#\~/$HOME} | envsubst )
+
     done < <( sed -E '/^#|^;|^\s*$/d' ${ini})
 }
 
@@ -60,8 +66,8 @@ done
 ## Main
 #
 
-topull=$( build_pull_list ${bopt} ${version} -x 1 -c ${VAR[max_bits_to_check]} )
-dir=test pullsecret=${VAR[pullsecret_file]} fetch_upi_files ${topull}
+topull=$( build_pull_list ${bopt} ${VAR[version]} -x 1 -c ${VAR[max_bits_to_check]} )
+dir=${VAR[dir]} pullsecret=${VAR[pullsecret_file]} fetch_upi_files ${topull}
 
 # Todo
 # put rhcos images on https server
