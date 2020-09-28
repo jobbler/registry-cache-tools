@@ -4,10 +4,8 @@ fetch_upi_files() {
     # Options: [-d] - Directory to download files into
     # Options: [-p] - Pull secret file
     # Description: This script requires the version of the bits to download.
-    # Description: For GA bits, this is the directory name at
-    # Description:   https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
-    # Description: For CI bits, this is the 
-4.6.0-0.nightly-2020-09-24-015627
+    # Description: The bits are downloaded from:
+    # Description:   https://mirror.openshift.com/pub/openshift-v4/clients/ocp*
 
     # Returns: nothing
 
@@ -47,7 +45,7 @@ fetch_upi_files() {
 
 
     [[ $bits =~ nightly ]] \
-    && url=${ci_url} \
+    && url=${dev_url} \
     || url=${ga_url}
 
 

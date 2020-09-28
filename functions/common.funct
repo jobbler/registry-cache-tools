@@ -1,0 +1,88 @@
+
+file_exists() {
+    # Usage: cache_files [-v] file
+    # Options: [-v] - dont be silent
+    # Description: This script checks if a file exists
+
+    # Returns: 0 (true the file exists) or 1 (false the file does not exist)
+
+    local OPTIND options
+    local filename
+    local verbose state
+
+    ## Parse options
+    while getopts ":v" options
+    do
+        case "${options}" in
+            v)  # www directory to place the directory and files into
+                verbose=set
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    filename=$1
+
+    [[ -z ${filename+isset} ]] \
+    && {
+        echo "No filename specified to check"
+        return 255
+    }
+
+
+    ## Set defaults
+
+
+
+    ## Main
+    
+    [[ -f ${filename} ]] \
+    && {
+        state="file exists"
+        RC=0
+    } || {
+        state="file does not exist"
+        RC=1
+    }
+
+    [[ -n ${verbose:+isset} ]] && echo "${filename}: ${state}"
+
+    return ${RC}
+}
+
+download() {
+    local OPTIND options
+    local filename RC
+    local verbose=""
+    local fail=""
+
+    ## Parse options
+    while getopts ":vf" options
+    do
+        case "${options}" in
+            v)  # Be verbose on the output
+                verbose="-v"
+                ;;
+            f)  # fail if the file does not exist
+                fail="-f"
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    local src=$1
+    local dest=$2
+
+    wget -O ${dest} ${src}
+
+    file_exists ${verbose} ${fail} ${dest}
+    RC=$?
+
+    return  ${RC}
+}
+
+
+
+
