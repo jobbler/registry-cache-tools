@@ -58,13 +58,21 @@ fetch_upi_files() {
         [[ -d ${dir} ]] || mkdir -p ${dir}
 
         # Fetch the release.txt file so we can know which images to pull
-        wget -O ${dir}/release.txt ${url}/${bits}/release.txt
+#        wget -O ${dir}/release.txt ${url}/${bits}/release.txt
+        fail=true download \
+            ${url}/${bits}/release.txt \
+            ${dir}/release.txt
+
+exit
 
         release=`cat ${dir}/release.txt | grep Name | awk {'print $2'}`
         release_image=$( sed -n '/^Pull From:/ s/^.*: //p' ${dir}/release.txt )
 
         # Fetch and extract the oc command
-        wget -O ${dir}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
+#        wget -O ${dir}/openshift-client-linux-${release}.tar.gz ${url}/${bits}/openshift-client-linux-${release}.tar.gz
+        fail=true download \
+            ${url}/${bits}/openshift-client-linux-${release}.tar.gz \
+            ${dir}/openshift-client-linux-${release}.tar.gz
 
         tar xf ${dir}/openshift-client-linux-${release}.tar.gz \
             --directory ${dir} oc
@@ -79,7 +87,8 @@ fetch_upi_files() {
         # Fetch the rhcos json file so we know which rhcos images to fetch.
         commit_id=$( ${dir}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
         j_url=$( echo ${json_url} | sed -e "s/::commitid::/${commit_id}/" )
-        wget -O ${dir}/rhcos.json ${j_url}
+#        wget -O ${dir}/rhcos.json ${j_url}
+        fail=true download ${j_url} ${dir}/rhcos.json
 
         # Identify the URI for the images
         rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/rhcos.json )
@@ -90,22 +99,31 @@ fetch_upi_files() {
         # Fetch the kernel image
         [[ ! -e ${dir}/${rhcos_kernel_uri} ]] \
         && {
-            wget -O ${dir}/${rhcos_kernel_uri} ${rhcos_uri}/${rhcos_kernel_uri} \
-                && echo ${dir}/${rhcos_kernel_uri}
+#            wget -O ${dir}/${rhcos_kernel_uri} ${rhcos_uri}/${rhcos_kernel_uri} \
+#                && echo ${dir}/${rhcos_kernel_uri}
+            fail=true download \
+                ${rhcos_uri}/${rhcos_kernel_uri} \
+                ${dir}/${rhcos_kernel_uri}
         }
 
         # Fetch the initramfs image
         [[ ! -e ${dir}/${rhcos_initramfs_uri} ]] \
         && {
-            wget -O ${dir}/${rhcos_initramfs_uri} ${rhcos_uri}/${rhcos_initramfs_uri} \
-                && echo ${dir}/${rhcos_initramfs_uri}
+#            wget -O ${dir}/${rhcos_initramfs_uri} ${rhcos_uri}/${rhcos_initramfs_uri} \
+#                && echo ${dir}/${rhcos_initramfs_uri}
+            fail=true download \
+                ${rhcos_uri}/${rhcos_initramfs_uri} \
+                ${dir}/${rhcos_initramfs_uri}
         }
 
         # Fetch the metal image
         [[ ! -e ${dir}/${rhcos_metal_uri} ]] \
         && {
-            wget -O ${dir}/${rhcos_metal_uri} ${rhcos_uri}/${rhcos_metal_uri} \
-                && echo ${dir}/${rhcos_metal_uri}
+#            wget -O ${dir}/${rhcos_metal_uri} ${rhcos_uri}/${rhcos_metal_uri} \
+#                && echo ${dir}/${rhcos_metal_uri}
+            fail=true download \
+                ${rhcos_uri}/${rhcos_metal_uri} \
+                ${dir}/${rhcos_metal_uri}
         }
 
     }

@@ -1,86 +1,73 @@
 
 file_exists() {
-    # Usage: cache_files [-v] file
-    # Options: [-v] - dont be silent
+    # Usage: file_exists file
     # Description: This script checks if a file exists
 
     # Returns: 0 (true the file exists) or 1 (false the file does not exist)
 
-    local OPTIND options
-    local filename
     local verbose state
-
-    ## Parse options
-    while getopts ":v" options
-    do
-        case "${options}" in
-            v)  # www directory to place the directory and files into
-                verbose=set
-                ;;
-        esac
-    done
-
-    shift $(($OPTIND - 1))
-
-    filename=$1
-
-    [[ -z ${filename+isset} ]] \
-    && {
-        echo "No filename specified to check"
-        return 255
-    }
-
-
-    ## Set defaults
-
+    local filename=$1
 
 
     ## Main
     
-    [[ -f ${filename} ]] \
+    [[ -z ${filename+isset} ]] \
     && {
-        state="file exists"
-        RC=0
+        IMPORTANT=true output "No filename specified to check"
     } || {
-        state="file does not exist"
-        RC=1
+        [[ -f ${filename} ]] \
+        && {
+            state="file exists"
+            RC=0
+        } || {
+            state="file does not exist"
+            RC=1
+        }
+
+        output "${filename}: ${state}
     }
 
-    [[ -n ${verbose:+isset} ]] && echo "${filename}: ${state}"
+    [[ ${RC} -ne 0 && -n ${fail:+isset} ]] && exit ${RC}
 
     return ${RC}
 }
 
+debug() {
+    [[ -n ${DEBUG:+isset} ]] && output "$@"
+}
+
+output() {
+    local line 
+
+    for line in "$@"
+    do
+        [[ -n ${VERBOSE:+isset} || -n ${IMPORTANT:+isset} ]] \
+        && {
+            echo "${line}"
+        }
+
+        [[ -n ${LOGFILE:+isset} || -n ${IMPORTANT:+isset} ]] \
+        && {
+            echo "${line}" >> ${LOGFILE}
+        }
+    done
+}
+
 download() {
+    # can set fail=true when calling function to cause an exit on failure
     local OPTIND options
     local filename RC
-    local verbose=""
-    local fail=""
-
-    ## Parse options
-    while getopts ":vf" options
-    do
-        case "${options}" in
-            v)  # Be verbose on the output
-                verbose="-v"
-                ;;
-            f)  # fail if the file does not exist
-                fail="-f"
-                ;;
-        esac
-    done
-
-    shift $(($OPTIND - 1))
+    local fail
 
     local src=$1
     local dest=$2
 
-    wget -O ${dest} ${src}
+    debug "$(wget -O ${dest} ${src} 2>&1$)"
 
-    file_exists ${verbose} ${fail} ${dest}
+    fail=${fail} file_exists ${dest}
     RC=$?
 
-    return  ${RC}
+    return ${RC}
 }
 
 
