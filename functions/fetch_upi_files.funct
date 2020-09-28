@@ -55,6 +55,7 @@ fetch_upi_files() {
 
         tar xf ${dir}/openshift-client-linux-${release}.tar.gz \
             --directory ${dir} oc
+        fail=true file_exists ${dir}/oc
 
         # Extract the installer
         ${dir}/oc adm release extract \
@@ -62,6 +63,7 @@ fetch_upi_files() {
             --command="${cmd}" \
             --to ${dir} \
             ${release_image}
+        fail=true file_exists ${dir}/openshift-baremetal-install
 
         # Fetch the rhcos json file so we know which rhcos images to fetch.
         commit_id=$( ${dir}/openshift-baremetal-install version | sed -n 's/^built from commit //p' )
