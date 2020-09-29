@@ -67,7 +67,7 @@ done
 #
 
 topull=$( build_pull_list ${bopt} ${VAR[version]} -x 1 -c ${VAR[max_bits_to_check]} )
-dir=${VAR[dir]} pullsecret=${VAR[pullsecret_file]} fetch_upi_files ${topull}
+dir=${VAR[dir]}/${topull} pullsecret=${VAR[pullsecret_file]} fetch_upi_files ${topull}
 
 # Todo
 # put rhcos images on https server

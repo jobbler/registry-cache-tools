@@ -15,7 +15,10 @@ fetch_upi_files() {
     local cmd pullsecret
     local json_url j_url
     local release release_image commit_id
-    local rhcos_uri rhcos_kernel_uri rhcos_initramfs_uri rhcos_metal_uri
+    local rhcos_uri rhcos_kernel_uri rhcos_initramfs_uri rhcos_rootfs_uri
+    local initrd=live-initramfs
+    local kernel=live-kernel
+    local rootfs=live-rootfs
 
     bits=$1
 
@@ -29,6 +32,14 @@ fetch_upi_files() {
     [[ $bits =~ nightly ]] \
     && url=${dev_url} \
     || url=${ga_url}
+
+    ## Add check if installing 4.5 bits that initrd, kernel, and rootfs change.
+#    [[ bits is less than 4.6 ]] \
+#    && {
+#        initrd=initramfs
+#        kernel=kernel
+#        rootfs=metal
+#    }
 
 
     # Strip tailing slash from dir
@@ -71,9 +82,9 @@ fetch_upi_files() {
         fail=true download ${j_url} ${dir}/rhcos.json
 
         # Identify the URI for the images
-        rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/rhcos.json )
-        rhcos_initramfs_uri=$( jq --raw-output .images.imitramfs.path ${dir}/rhcos.json )
-        rhcos_metal_uri=$( jq --raw-output .images.metal.path ${dir}/rhcos.json )
+        rhcos_kernel_uri=$( jq --raw-output .images.${kernel}.path ${dir}/rhcos.json )
+        rhcos_initramfs_uri=$( jq --raw-output .images.${initrd}.path ${dir}/rhcos.json )
+        rhcos_rootfs_uri=$( jq --raw-output .images.${rootfs}.path ${dir}/rhcos.json )
         rhcos_uri=$( jq --raw-output .baseURI ${dir}/rhcos.json )
 
         # Fetch the kernel image
@@ -92,12 +103,12 @@ fetch_upi_files() {
                 ${dir}/${rhcos_initramfs_uri}
         }
 
-        # Fetch the metal image
-        [[ ! -e ${dir}/${rhcos_metal_uri} ]] \
+        # Fetch the rootfs image
+        [[ ! -e ${dir}/${rhcos_rootfs_uri} ]] \
         && {
             fail=true download \
-                ${rhcos_uri}/${rhcos_metal_uri} \
-                ${dir}/${rhcos_metal_uri}
+                ${rhcos_uri}/${rhcos_rootfs_uri} \
+                ${dir}/${rhcos_rootfs_uri}
         }
 
     }
