@@ -16,9 +16,6 @@ fetch_upi_files() {
     local json_url j_url
     local release release_image commit_id
     local rhcos_uri rhcos_kernel_uri rhcos_initramfs_uri rhcos_rootfs_uri
-    local initrd=live-initramfs
-    local kernel=live-kernel
-    local rootfs=live-rootfs
 
     bits=$1
 
@@ -32,14 +29,6 @@ fetch_upi_files() {
     [[ $bits =~ nightly ]] \
     && url=${dev_url} \
     || url=${ga_url}
-
-    ## Add check if installing 4.5 bits that initrd, kernel, and rootfs change.
-#    [[ bits is less than 4.6 ]] \
-#    && {
-#        initrd=initramfs
-#        kernel=kernel
-#        rootfs=metal
-#    }
 
 
     # Strip tailing slash from dir
@@ -81,11 +70,29 @@ fetch_upi_files() {
         j_url=$( echo ${json_url} | sed -e "s/::commitid::/${commit_id}/" )
         fail=true download ${j_url} ${dir}/rhcos.json
 
+    local initrd=live-initramfs
+    local kernel=live-kernel
+    local rootfs=live-rootfs
+    ## Add check if installing 4.5 bits that initrd, kernel, and rootfs change.
+#    [[ bits is less than 4.6 ]] \
+#    && {
+#        initrd=initramfs
+#        kernel=kernel
+#        rootfs=metal
+#    }
+
         # Identify the URI for the images
-        rhcos_kernel_uri=$( jq --raw-output .images.${kernel}.path ${dir}/rhcos.json )
-        rhcos_initramfs_uri=$( jq --raw-output .images.${initrd}.path ${dir}/rhcos.json )
-        rhcos_rootfs_uri=$( jq --raw-output .images.${rootfs}.path ${dir}/rhcos.json )
         rhcos_uri=$( jq --raw-output .baseURI ${dir}/rhcos.json )
+
+        # If 4.6 images
+        rhcos_kernel_uri=$( jq --raw-output '.images.["live-kernel"].path' ${dir}/rhcos.json )
+        rhcos_initramfs_uri=$( jq --raw-output '.images.["live-initramfs"].path' ${dir}/rhcos.json )
+        rhcos_rootfs_uri=$( jq --raw-output '.images.["live-rootfs"].path' ${dir}/rhcos.json )
+
+        # If earlier than 4.6 images
+        #rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/rhcos.json )
+        #rhcos_initramfs_uri=$( jq --raw-output .images.initramfs.path ${dir}/rhcos.json )
+        #rhcos_rootfs_uri=$( jq --raw-output .images.metal.path ${dir}/rhcos.json )
 
         # Fetch the kernel image
         [[ ! -e ${dir}/${rhcos_kernel_uri} ]] \
