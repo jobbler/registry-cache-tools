@@ -1,0 +1,11 @@
+
+
+# This function should take the following options
+#   bits
+#   ga or nightly
+
+# It should download the bits if needed and then make a link to the bits directory
+#   The links should be:
+#   latest-4.3
+#   latest-4.3-nightly
+
