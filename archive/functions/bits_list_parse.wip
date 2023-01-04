@@ -1,0 +1,15 @@
+
+# This function should use a list of the bits to download in the form:
+
+##### ga|nightly	bits	date_added_to_list
+#bits	date_added_to_list	status(queued or '')	select_box(add, delete, reset)
+
+# If the bits dont exist, download them.
+
+# Use a web page to control the list:
+# display current list and all current bits
+# provide input box to update list
+#   add ga|nightly bitversion (adds bits immediately)
+#   delete ga|nightly bitversion (only deletes from list)
+#   reset ga|nightly bitversion (resets expiration counter)
+#   list all|[ga|nightly bitversion] (returns the status of an entry or all entries)

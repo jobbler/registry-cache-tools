@@ -1,0 +1,48 @@
+
+check_nightly_status() {
+    # Requires: nightly_ci_url
+    # Usage: [-u URL] [-v string] bits_version
+    # Options: [-u URL] - Use an alternate URL when checking for pass/fail.
+    #              URL can contain ::bits:: which will be replaced with 
+    #                  the bits_version.
+    #              URL can contain ::version:: which will be replaced with the 
+    #                  bits_version with "nightly" stripped off.
+    # Options: [-v string] - Use an alternate value for ::version:: in the URL.
+    # Returns: Status of metal tests
+    #              metal Succeeded|Failed
+    #              metal-serial Succeeded|Failed
+
+
+
+    # Takes optional arguments followed by the directory name of the bits to check
+    # i.e. check_nightly_status [-u url] [-v version] bits
+    #
+    local OPTIND options
+    local version url bits
+
+    while getopts ":u:v:" options
+    do
+        case "${options}" in
+            u)  # Set an alternate url to check for pass/fail
+                # Can include ::version:: and ::bits:: for substitution
+                nightly_ci_url="${OPTARG}"
+                ;;
+            v)  # Set an alternate version to use when substituting ::version::
+                # in url
+                version="${OPTARG}"
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+
+    bits=$1
+    : ${version:=$( echo "${bits}" | sed 's/\(.nightly\).*/\1/' )}
+
+    url=$( echo ${nightly_ci_url} | sed -e "s/::version::/${version}/" -e "s/::bits::/${bits}/" )
+
+    curl -sS ${url} \
+        | sed -n 's/.*>\(metal\) \(Failed\|Succeeded\)<.*>\(metal-serial\) \(Failed\|Succeeded\)<.*/\1 \2\n\3 \4/p'
+}
+

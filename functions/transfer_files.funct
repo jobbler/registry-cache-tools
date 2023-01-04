@@ -1,0 +1,18 @@
+transfer_files() {
+    local dir
+    local files
+    local server
+    local user
+    local remote_dir
+    
+    files="$@"
+
+    ssh ${user}@${server} "[[ ! -d ${remote_dir} ]] && mkdir -p ${remote_dir}"
+
+    for file in "${files[@]}"
+    do
+
+        scp ${dir}/${file} ${user}@${server}:${remote_dir}
+
+    done
+}

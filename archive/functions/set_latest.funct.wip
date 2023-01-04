@@ -1,0 +1,66 @@
+
+
+# This function should take the following options
+#   bits
+#   ga or nightly
+
+# It should download the bits if needed and then make a link to the bits directory
+#   The links should be:
+#   latest-4.3
+#   latest-4.3-nightly
+
+
+set_latest() {
+
+    local OPTIND options
+    local bits url release bit_type
+
+    while getopts ":n" options
+    do
+        case "${options}" in
+            n)  # Set the owner of the root web directory and files
+                bit_type=nightly
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    : ${www_dir:=/opt/cache}
+    : ${owner:=$USER}
+    bits=$1
+
+    [[ -n ${bits+isset} ]] \
+    && {
+
+# change this check to isset if not emplty then nightly_url else ga
+# might be able to use param expansion
+        [[ $bit_type =~ nightly ]] \
+        && url=$nightly_url \
+        || url=$ga_url
+
+#        [[ -d ${www_dir}/${bits} ]] && {
+#        echo rm -rf ${www_dir}/${bits}
+#        }
+#
+#        [[ -n ${issudo+isset} ]] \
+#        && {
+#            sudo mkdir -p ${www_dir}/${bits}
+#            sudo chown --recursive ${owner}.${owner} ${www_dir}
+#        } || {
+#            mkdir -p ${www_dir}/${bits}
+#            chown --recursive ${owner}.${owner} ${www_dir}
+#        }
+
+        release=$( curl ${url}/${bits}/release.txt | grep Name | awk {'print $2'} )
+
+# check if latest-release_dir or latest-release_dir-nightly exists
+# if not, cache the bits
+#
+# remove existing link
+# link latest- to bits
+
+        mirror_repo -c ${www_dir}/${bits}/oc -p ${pullsecret} -u ${release_image} -l ${local_repo} -r ${local_registry} ${release}
+
+    }
+}

@@ -85,9 +85,9 @@ fetch_upi_files() {
         rhcos_uri=$( jq --raw-output .baseURI ${dir}/rhcos.json )
 
         # If 4.6 images
-        rhcos_kernel_uri=$( jq --raw-output '.images.["live-kernel"].path' ${dir}/rhcos.json )
-        rhcos_initramfs_uri=$( jq --raw-output '.images.["live-initramfs"].path' ${dir}/rhcos.json )
-        rhcos_rootfs_uri=$( jq --raw-output '.images.["live-rootfs"].path' ${dir}/rhcos.json )
+        rhcos_kernel_uri=$( jq --raw-output '.images["live-kernel"].path' ${dir}/rhcos.json )
+        rhcos_initramfs_uri=$( jq --raw-output '.images["live-initramfs"].path' ${dir}/rhcos.json )
+        rhcos_rootfs_uri=$( jq --raw-output '.images["live-rootfs"].path' ${dir}/rhcos.json )
 
         # If earlier than 4.6 images
         #rhcos_kernel_uri=$( jq --raw-output .images.kernel.path ${dir}/rhcos.json )

@@ -1,0 +1,70 @@
+
+create_install_config() {
+    local workers masters cluster domain
+    local pullsecret
+    local pubkey
+    local dir
+
+    ps=$( cat pstring )
+    pk=$( cat pubkey )
+
+
+    cat <<EOF> ${dir}/install-config.yaml
+apiVersion: v1
+baseDomain: ${domain}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: ${workers}
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: ${masters}
+metadata:
+  name: ${cluster}
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+fips: false
+pullSecret: '${ps}'
+sshKey: '${pk}'
+EOF
+
+    cp ${dir}/install-config.yaml{,.bak}
+}
+
+create_manifests() {
+    local dir
+
+    ${dir}/openshift-baremetal-install --dir ${dir} create manifests
+}
+
+create_ignition() {
+    local workers masters cluster domain
+    local pullsecret
+    local pubkey
+    local dir
+
+
+    workers=${workers} masters=${masters} \
+    cluster=${cluster} domain=${domain} \
+    pullsecret=${pullsecret} pubkey=${pubkey} \
+    dir=${dir} \
+    create_install_config
+
+    dir=${dir} create_manifests
+
+    ${dir}/openshift-baremetal-install --dir ${dir} create ignition-configs
+}
+
+
+
+
+
+

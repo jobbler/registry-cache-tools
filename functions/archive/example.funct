@@ -1,0 +1,13 @@
+
+example() {
+    local text=$*
+    local dir=${VAR[value3]}
+
+    : ${text:=hello}
+    : ${dir:=${VAR[value1]}}
+    : ${dir:=/home}
+
+
+    printf ":--: %s :--: %s :--: %s :--\n" "${VAR[value2]}" "${text}" "${dir}"
+
+}

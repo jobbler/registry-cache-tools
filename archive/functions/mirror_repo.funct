@@ -1,0 +1,55 @@
+
+mirror_repo() {
+    # Requires: pullsecret, upstream_repo, local_repo, local_registry
+    # Usage: [-c command] [-p file] [-u upstream_repo] [-l local_repo] [-r local_registry] bits_version
+    # Options: [-c command] - 
+    # Options: [-p file] - 
+    # Options: [-u upstream_repo] - 
+    # Options: [-l local_repo] - 
+    # Options: [--r local_registry] - 
+    # Returns:
+
+    local OPTIND options
+    local bits pullsecret upstream_repo local_repo local_registry
+
+    while getopts ":c:p:u:l:r:" options
+    do
+        case "${options}" in
+            c)  # path to the oc command if it not in the path
+                occmd="${OPTARG}"
+                ;;
+            p)  # path and name of the pullsecret file
+                pullsecret="${OPTARG}"
+                ;;
+            u)  # Name of the upstream repository to mirror
+                upstream_repo="${OPTARG}"
+                ;;
+            l)  # local repository on the local registry server
+                local_repo="${OPTARG}"
+                ;;
+            r)  # local registry server
+                local_registry="${OPTARG}"
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+       [[ -n ${pullsecret+isset} ]] \
+    && [[ -n ${upstream_repo+isset} ]] \
+    && [[ -n ${local_repo+isset} ]] \
+    && [[ -n ${local_registry+isset} ]] \
+    && [[ -n ${bits+isset} ]] \
+    && {
+           $occmd adm release mirror \
+               -a ${pullsecret} \
+               --from=${upstream_repo} \
+               --to-release-image=${local_registry}/${local_repo}:${bits} \
+               --to=${local_registry}/${local_repo}
+       } || {
+           echo "Need to specify pullsecret, upstream repo, local repo and local registry server and bit version to mirror"
+       }
+}
+

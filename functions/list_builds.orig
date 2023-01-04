@@ -1,0 +1,57 @@
+
+list_builds() {
+    # Usage: list_builds [-n|-u url] [-q #] bits_version
+    # Options: [-u url] - alternate url to get builds
+    # Options: [-q #]   - Number of results to return.
+    # Options: [-n]     - Check nightly builds instead of GA builds.
+
+    # Returns: list of bit versions
+
+
+    local ga_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+    local nightly_url=https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/
+
+    local OPTIND options
+    local bits url
+    local quantity=1000
+
+    ## Parse options
+    while getopts ":q:u:n" options
+    do
+        case "${options}" in
+            q)  # Number of items to return. Default: 1000
+                quantity=${OPTARG}
+                ;;
+            u)  # alternate url for builds
+                [[ -n ${url:+isset} ]] \
+                && { 
+                    printf "Error: $0 (${FUNCNAME[0]}): Cannot specify both the -u and -n options.\n"
+                    exit
+                }
+                url="${OPTARG}"
+                ;;
+            n)  # Check nightly builds
+                [[ -n ${url:+isset} ]] \
+                && { 
+                    printf "Error: $0 (${FUNCNAME[0]}): Cannot specify both the -u and -n options.\n"
+                    exit
+                }
+                url="${nightly_url}"
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+    : ${url:=$ga_url}
+
+    ## Main
+    curl -L -sS ${url} |
+          sed -n 's#^.*<a href="\(.*\)/">.*#\1#p' \
+        | grep "^${bits}" \
+        | sort --version-sort --reverse \
+        | head -${quantity} 
+}
+

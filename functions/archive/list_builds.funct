@@ -1,0 +1,40 @@
+
+list_builds() {
+    # Requires: ga_url, nightly_url
+    # Usage: [-q #] [-u URL] [-n] bits_version
+    # Options: [-q #] - Number of results to return
+    # Options: [-u URL] - UEL to use instead of standard GA or Nightly URLs
+    # Optione: [-n] - Check nightly builds instead of GA builds
+    # Returns: list of bit versions
+
+    local OPTIND options
+    local quantity=1000
+    local version=""
+    local url="${ga_url}"
+
+    while getopts ":nq:v:u:" options
+    do
+        case "${options}" in
+            q)  # Quantity to return
+                quantity=${OPTARG}
+                ;;
+            u)  # URL to search, works instead of GA or Nightly urls
+                custom_url="${OPTARG}"
+                ;;
+            n)  # Check nightly builds instead of GA builds.
+                url="${nightly_url}"
+                ;;
+        esac
+    done
+
+    shift $(($OPTIND - 1))
+
+    bits=$1
+
+    curl -sS ${custom_url:-$url} |
+          sed -n 's#^.*<a href="\(.*\)/">.*#\1#p' \
+        | grep "^${bits}" \
+        | sort --version-sort --reverse \
+        | head -${quantity} 
+}
+

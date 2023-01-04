@@ -1,0 +1,9 @@
+
+
+# This wipes the entire registry and cached files
+#   shutdown registry container
+#   remove registry data sub-directories
+#   restart registry container
+#   
+#   erase cache root directory
+
